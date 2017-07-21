@@ -13,6 +13,7 @@ function RESPONSE_TO_HTTP(e){
     var Connectext = "DATABASE=ext;DRIVER={PostgreSQL Unicode};PORT=5432;PWD=postgres;SERVER=192.168.15.101;UID=postgres;";
     var ConnectLPRCAM = "DATABASE=securos;DRIVER={PostgreSQL Unicode};PORT=5432;PWD=postgres;SERVER=192.168.15.101;UID=postgres;";
     var ConnectAuto = "DATABASE=auto;DRIVER={PostgreSQL Unicode};PORT=5432;PWD=postgres;SERVER=192.168.15.101;UID=postgres;";
+	 var ConnectCoordenadas = "DATABASE=coordenadas;DRIVER={PostgreSQL Unicode};PORT=5432;PWD=postgres;SERVER=localhost;UID=postgres;";
     var identificador = e._id;
     var cantidadResultados = 0;
     var respuesta;
@@ -39,11 +40,17 @@ function RESPONSE_TO_HTTP(e){
                 Cnxn.open(ConnectLPRCAM);
                 CnxnRecord.open(query,Cnxn);
                 CnxnRecord.MoveFirst;
-
+					
                 while (!CnxnRecord.eof)
                 {
-                    Log.Debug(cantidadResultados);
-                    Log.Debug(CnxnRecord.Fields("name").Value);
+						Cnxn2 = new ActiveXObject("ADODB.Connection");
+						CnxnRecord2 = new ActiveXObject("ADODB.Recordset");
+						                    Log.Debug(cantidadResultados);
+						Cnxn2.open(ConnectCoordenadas);
+						                    Log.Debug(CnxnRecord.Fields("name").Value);
+						CnxnRecord2.open("select * from coordenadas where \"id\" = " + CnxnRecord.Fields("id").Value, Cnxn2);
+
+
                     Log.Debug(CnxnRecord.Fields("id").Value);
 
                     if(cantidadResultados > 0)
@@ -51,9 +58,10 @@ function RESPONSE_TO_HTTP(e){
                         respuesta += ","
                     }
 
-                    respuesta += "{ \"nombre\" : \""+CnxnRecord.Fields("name").Value+"\",\"id\" : \""+CnxnRecord.Fields("id").Value+"\"}";
+                    respuesta += "{ \"nombre\" : \""+CnxnRecord.Fields("name").Value+"\",\"id\" : \""+CnxnRecord.Fields("id").Value+"\", \"latitud\":\""+CnxnRecord2.Fields("latitud").Value+"\",\"longitud\":\""+CnxnRecord2.Fields("longitud").Value+"\"}";
 
                     cantidadResultados++;
+						Cnxn2.Close();
                     CnxnRecord.MoveNext;
                 }
                 
