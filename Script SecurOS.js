@@ -1,3 +1,18 @@
+/*
+ * READ THIS
+ * You should change of course the ip addresses for the vars of postgresql connections
+ * You should create the coordinates database and fill with data of the actually used recognizers
+ * You should add the following lines to the C:\Program Files (x86)\ISS\SecurOS\Modules\http_event_proxy\paths.txt file:
+ 
+	/set-view
+	/set-alta
+	/set-baja
+	/get-plate
+	/get-blacklist
+	/get-whitelist
+	/insert-comments
+*/
+
 function Init(){
     Core.RegisterEventHandler("HTTP_EVENT_PROXY","2","PENDING_REQUEST","RESPONSE_TO_HTTP");
         
@@ -13,12 +28,13 @@ function RESPONSE_TO_HTTP(e){
     var Connectext = "DATABASE=ext;DRIVER={PostgreSQL Unicode};PORT=5432;PWD=postgres;SERVER=192.168.15.101;UID=postgres;";
     var ConnectLPRCAM = "DATABASE=securos;DRIVER={PostgreSQL Unicode};PORT=5432;PWD=postgres;SERVER=192.168.15.101;UID=postgres;";
     var ConnectAuto = "DATABASE=auto;DRIVER={PostgreSQL Unicode};PORT=5432;PWD=postgres;SERVER=192.168.15.101;UID=postgres;";
-	 var ConnectCoordenadas = "DATABASE=coordenadas;DRIVER={PostgreSQL Unicode};PORT=5432;PWD=postgres;SERVER=localhost;UID=postgres;";
+    var ConnectCoordenadas = "DATABASE=coordenadas;DRIVER={PostgreSQL Unicode};PORT=5432;PWD=postgres;SERVER=localhost;UID=postgres;";
     var identificador = e._id;
     var cantidadResultados = 0;
     var respuesta;
     var guid = ""; 
 
+//Changing securos message GUID
     for(var it = 0;it<e._id.length;it++)
     {
         Log.Debug(e._id[it]);
@@ -34,7 +50,10 @@ function RESPONSE_TO_HTTP(e){
         if(e.reconocedores == "alta"){
             try
             {
+		    
+		//Starts to build response message
                 respuesta = "{\"notificacion\":\"reconocedores\",\"structure\":[";
+		    
                 var query="select name, id from \"OBJ_LPR_CAM\"";
                 Log.Debug(query);
                 Cnxn.open(ConnectLPRCAM);
@@ -57,7 +76,8 @@ function RESPONSE_TO_HTTP(e){
                     {
                         respuesta += ","
                     }
-
+			
+		    //Add matches to response message
                     respuesta += "{ \"nombre\" : \""+CnxnRecord.Fields("name").Value+"\",\"id\" : \""+CnxnRecord.Fields("id").Value+"\", \"latitud\":\""+CnxnRecord2.Fields("latitud").Value+"\",\"longitud\":\""+CnxnRecord2.Fields("longitud").Value+"\"}";
 
                     cantidadResultados++;
@@ -65,6 +85,7 @@ function RESPONSE_TO_HTTP(e){
                     CnxnRecord.MoveNext;
                 }
                 
+		//Finish response message
                 respuesta += "],\"recepcion\":\"ok\",\"guid\":\""+guid+"\"}";
                 Cnxn.Close();   
                 
@@ -73,12 +94,14 @@ function RESPONSE_TO_HTTP(e){
             {
                 Cnxn.Close();
 					Log.Debug(exception);
+		//Replace response to nok when exception
                 respuesta = "{\"recepcion\":\"nok\",\"guid\":\""+guid+"\"}";
             }    
             
         }
         else
         {
+	    //Missing parameters error
             respuesta = "{\"notificacion\":\"Error\",\"descripcion\":\"Ingreso erroneo de datos\"}"
         }
         
@@ -89,6 +112,7 @@ function RESPONSE_TO_HTTP(e){
         
         if((e.placa != null || e.database != null) && (e.database == "whitelist" || e.database == "blacklist"))
         {
+		//Assuming a plate is at least 5 characters long
             if(e.placa.length >= 5)
             {
                 var folio = "";
@@ -118,22 +142,27 @@ function RESPONSE_TO_HTTP(e){
                     CnxnCommand.ActiveConnection = Cnxn;
                     CnxnRecord = Cnxn.Execute(query);
                     Cnxn.Close();
+			
+		    //Response message
                     respuesta = "{\"recepcion\":\"ok\",\"guid\":\""+guid+"\"}";
 
                 }
                 catch(exception)
                 {
                     Cnxn.Close();       
+		    //Replace response to nok when exception
                     respuesta = "{\"recepcion\":\"nok\",\"guid\":\""+guid+"\"}";
                 }
             }
             else
             {
+		    //Missing parameters error
                 respuesta = "{\"notificacion\":\"Error\",\"descripcion\":\"Ingreso erroneo de datos\"}"
             }
         }
         else
         {
+		//Missing parameters error
             respuesta = "{\"notificacion\":\"Error\",\"descripcion\":\"Ingreso erroneo de datos\"}"
         }
         
@@ -144,7 +173,7 @@ function RESPONSE_TO_HTTP(e){
         
         Log.Debug(guid);
 
-       
+       //Assuming a plate is at least 5 characters long
         if((e.placa != null && e.placa.length >= 5 && e.database != null) && (e.database == "whitelist" || e.database == "blacklist"))
         {
 
@@ -166,16 +195,20 @@ function RESPONSE_TO_HTTP(e){
                 CnxnRecord = Cnxn.Execute(query);
                 Cnxn.Close();
                 Log.Debug("Ok...");
+		   
+		//Response message
                 respuesta = "{\"recepcion\":\"ok\",\"guid\":\""+guid+"\"}";
 
            }catch(exception)
             {
                 Cnxn.Close();       
+		    //Replace response to nok when exception
                 respuesta = "{\"recepcion\":\"nok\",\"guid\":\""+guid+"\"}";
             }   
         }
         else
         {
+		//Missing parameters error
             respuesta = "{\"notificacion\":\"Error\",\"descripcion\":\"Ingreso erroneo de datos\"}";
         }
 
@@ -218,12 +251,13 @@ function RESPONSE_TO_HTTP(e){
         if(success)
         {
 
-            //Obtener fecha de inicio
+            //Obtain start date
             if(e.fechaInicio != null){
             
                 switch(e.fechaInicio.length)
                 {
                     case 0:
+			//No filter case
                         fechaInicio = "localtimestamp - interval '30 days'";
                         break;
                     default:
@@ -232,11 +266,12 @@ function RESPONSE_TO_HTTP(e){
                 }    
             }else
             {
+		    //No filter case
                 fechaInicio = "localtimestamp - interval '30 days'";
             }
             
 
-            //Obtener fecha de fin
+            //Obtain end date
             if(e.fechaFin != null)
             {
 		if(e.fechaFin.length > 6)
@@ -247,6 +282,7 @@ function RESPONSE_TO_HTTP(e){
 			switch(e.fechaFin.length)
 	                {
 	                    case 0:
+					//No filter case
         	                fechaFin = "localtimestamp";
                 	        break;
 	                    default:
@@ -258,33 +294,36 @@ function RESPONSE_TO_HTTP(e){
             }
             else
             {
+		    //No filter case
                 fechaFin = "localtimestamp";
             }
 
             
-            //Se arma la primera parte del query
+            //Start building the query
             
             query = "select * from t_log where time_best >= " + fechaInicio + " AND time_best <= " + fechaFin + " AND strpos(plate_recognized,upper('" + placa + "')) = 1" ;
             var queryImage = "";
 
-            //Obtener ID Arco y agregarlo al query, en ese orden específico
+	    //Obtain Recognizer ID and add it to the query in that specific order
+	    //If not specified or asterisk is used, no recognizer filter will be added
             if(e.idArco != null)
             {
                 if(e.idArco.length > 0 && e.idArco != "*")
                 {
                     idArco = e.idArco;
-                    queryImage += "AND lpr_id = '" + idArco + "'";
+                    //queryImage += "AND lpr_id = '" + idArco + "'";
                     query += "AND lpr_id = '" + idArco + "'";
                 }    
             }
 
-            //Se termina de armar el query
+            //Finish building the query
             query += " order by time_best";
 
 
 
             try
             {
+		    //Start building response
                 respuesta = "{\"structure\":[";
                 
                 Log.Debug(query);
@@ -297,10 +336,12 @@ function RESPONSE_TO_HTTP(e){
                 var iteration = 0;
                 var tid = "";
                 
-                 
+                 //No image option
                     if(e.justDate == "true")
                     {
                         Log.Debug("Working");
+			    
+			    //Limit set to 100... could be changed to a variable
                         while (!CnxnRecord.eof && cantidadResultados <= 100)
                         {
                             Log.Debug(cantidadResultados);
@@ -317,6 +358,8 @@ function RESPONSE_TO_HTTP(e){
                     
 					
                             Log.Debug("Respuesta: " + respuesta);
+				
+			    //Fill the response message
                             respuesta += "{ \"tid\":\"" + CnxnRecord.Fields("tid").Value + "\",\"nombre\" : \""+CnxnRecord.Fields("lpr_name").Value+"\",\"timeStamp\" : \""+CnxnRecord.Fields("time_best").Value+"\",\"placa\":\""+CnxnRecord.Fields("plate_recognized").Value + "\",\"direccion\":\""+CnxnRecord.Fields("direction_name").Value+"\",\"comentario\":\""+CnxnRecord.Fields("log_comment").Value+"\",\"recepcion\":\"ok\",\"guid\":\""+guid+"\"}";
 
                             cantidadResultados++;
@@ -325,6 +368,7 @@ function RESPONSE_TO_HTTP(e){
                     
                     
                 }else{
+		//Image option
                     var image;
                     Log.Debug(queryImage);
                     Cnxn2.open(ConnectAuto);
@@ -342,7 +386,8 @@ function RESPONSE_TO_HTTP(e){
                         {
                             respuesta += ","
                         }
-
+			    
+			//Query for the image, actually encoding to base64 directly from postgresql
                         queryImage = "SELECT encode(image, 'base64') from t_image where tid = " + tid; 
                         Log.Debug("Query image: " + queryImage);						
 
@@ -369,6 +414,8 @@ function RESPONSE_TO_HTTP(e){
                     }
                 }
                 Cnxn.Close();
+		    
+		    //Finish response message
                 respuesta += "]}";
             }
             
@@ -376,6 +423,7 @@ function RESPONSE_TO_HTTP(e){
             {
                 Cnxn.Close();
 					Log.Debug("Exception: " + exception);
+		    //Replace response to nok when exception
                 respuesta = "{\"recepcion\":\"nok\",\"guid\":\""+guid+"\"}";
                 
             }
@@ -383,6 +431,7 @@ function RESPONSE_TO_HTTP(e){
         }
         else
         {
+		//Missing parameters error
             respuesta = "{\"notificacion\":\"Error\",\"descripcion\":\"Ingreso erroneo de datos\"}";
         }
         
@@ -393,6 +442,8 @@ function RESPONSE_TO_HTTP(e){
     {
         var query;
         var cantidadResultados = 0;
+	  
+	//Start building response
         var respuesta = "{\"placas\":[";
         if(e._path == "/get-blacklist")
         {
@@ -412,7 +463,8 @@ function RESPONSE_TO_HTTP(e){
                 {
                     respuesta += ","
                 }
-
+		    
+		//Fill response message
                 respuesta += "\""+CnxnRecord.Fields("number").Value + "\"";
 
                 cantidadResultados++;
@@ -422,9 +474,10 @@ function RESPONSE_TO_HTTP(e){
          }
          catch(exception)
          {
+		 //Replace response to nok when exception
              respuesta = "{\"recepcion\":\"nok\",\"guid\":\""+guid+"\"}";
          }
-      
+      //Finish response message
         respuesta += "],\"recepcion\":\"ok\",\"guid\":\""+guid+"\"}";
         
     }else if(e._path == "/insert-comments")
@@ -441,17 +494,22 @@ function RESPONSE_TO_HTTP(e){
                 CnxnCommand.ActiveConnection = Cnxn;
                 CnxnRecord = Cnxn.Execute(query);
                 Cnxn.Close();
+		    
+		    //Response message
 					respuesta = "{\"recepcion\":\"ok\",\"guid\":\""+guid+"\"}";
             }
             catch(exception)
             {
+		    //Replace response to nok when exception
                 respuesta = "{\"recepcion\":\"nok\",\"guid\":\""+guid+"\"}";
             }
         }else
         {
+		//Missing parameters error
             respuesta = "{\"notificacion\":\"Error\",\"descripcion\":\"Ingreso erroneo de datos\"}";
         }
     }
 
+    // Send response to client
     Core.DoReact("HTTP_EVENT_PROXY","2","RESPONSE","_id",identificador,"_body",respuesta,"_content_type","application/json");
 }
